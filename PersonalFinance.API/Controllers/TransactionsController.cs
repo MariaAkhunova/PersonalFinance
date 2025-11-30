@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.API.Data;
 using PersonalFinance.API.Models;
+using PersonalFinance.API.Models.DTOs;
 
 namespace PersonalFinance.API.Controllers
 {
@@ -17,7 +18,7 @@ namespace PersonalFinance.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions(
+        public async Task<ActionResult<IEnumerable<TransactionResponseDto>>> GetTransactions(
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
             [FromQuery] int? categoryId = null)
@@ -36,14 +37,26 @@ namespace PersonalFinance.API.Controllers
             if (categoryId.HasValue)
                 query = query.Where(t => t.CategoryId == categoryId.Value);
 
-            return await query
+            var transactions = await query
                 .OrderByDescending(t => t.Date)
                 .ThenByDescending(t => t.Id)
                 .ToListAsync();
+
+            return transactions.Select(t => new TransactionResponseDto
+            {
+                Id = t.Id,
+                Amount = t.Amount,
+                Description = t.Description,
+                Date = t.Date,
+                CategoryId = t.CategoryId,
+                UserId = t.UserId,
+                CategoryName = t.Category.Name,
+                IsIncome = t.Category.IsIncome
+            }).ToList();
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Transaction>> GetTransaction(int id)
+        public async Task<ActionResult<TransactionResponseDto>> GetTransaction(int id)
         {
             var userId = GetUserId();
             var transaction = await _context.Transactions
@@ -53,35 +66,62 @@ namespace PersonalFinance.API.Controllers
             if (transaction == null)
                 return NotFound();
 
-            return transaction;
+            return new TransactionResponseDto
+            {
+                Id = transaction.Id,
+                Amount = transaction.Amount,
+                Description = transaction.Description,
+                Date = transaction.Date,
+                CategoryId = transaction.CategoryId,
+                UserId = transaction.UserId,
+                CategoryName = transaction.Category.Name,
+                IsIncome = transaction.Category.IsIncome
+            };
         }
 
         [HttpPost]
-        public async Task<ActionResult<Transaction>> PostTransaction(Transaction transaction)
+        public async Task<ActionResult<TransactionResponseDto>> PostTransaction([FromBody] TransactionDto transactionDto)
         {
             var userId = GetUserId();
-
+            
             var category = await _context.Categories
-                .FirstOrDefaultAsync(c => c.Id == transaction.CategoryId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.Id == transactionDto.CategoryId && c.UserId == userId);
 
             if (category == null)
                 return BadRequest("Invalid category");
 
-            transaction.UserId = userId;
+            var transaction = new Transaction
+            {
+                Amount = transactionDto.Amount,
+                Description = transactionDto.Description,
+                Date = transactionDto.Date,
+                CategoryId = transactionDto.CategoryId,
+                UserId = userId
+            };
+
             _context.Transactions.Add(transaction);
             await _context.SaveChangesAsync();
 
             await _context.Entry(transaction).Reference(t => t.Category).LoadAsync();
 
-            return CreatedAtAction("GetTransaction", new { id = transaction.Id }, transaction);
+            var response = new TransactionResponseDto
+            {
+                Id = transaction.Id,
+                Amount = transaction.Amount,
+                Description = transaction.Description,
+                Date = transaction.Date,
+                CategoryId = transaction.CategoryId,
+                UserId = transaction.UserId,
+                CategoryName = transaction.Category.Name,
+                IsIncome = transaction.Category.IsIncome
+            };
+
+            return CreatedAtAction("GetTransaction", new { id = transaction.Id }, response);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTransaction(int id, Transaction transaction)
+        public async Task<IActionResult> PutTransaction(int id, [FromBody] TransactionDto transactionDto)
         {
-            if (id != transaction.Id)
-                return BadRequest();
-
             var userId = GetUserId();
             var existingTransaction = await _context.Transactions
                 .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
@@ -90,15 +130,15 @@ namespace PersonalFinance.API.Controllers
                 return NotFound();
 
             var category = await _context.Categories
-                .FirstOrDefaultAsync(c => c.Id == transaction.CategoryId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.Id == transactionDto.CategoryId && c.UserId == userId);
 
             if (category == null)
                 return BadRequest("Invalid category");
 
-            existingTransaction.Amount = transaction.Amount;
-            existingTransaction.Description = transaction.Description;
-            existingTransaction.Date = transaction.Date;
-            existingTransaction.CategoryId = transaction.CategoryId;
+            existingTransaction.Amount = transactionDto.Amount;
+            existingTransaction.Description = transactionDto.Description;
+            existingTransaction.Date = transactionDto.Date;
+            existingTransaction.CategoryId = transactionDto.CategoryId;
 
             try
             {

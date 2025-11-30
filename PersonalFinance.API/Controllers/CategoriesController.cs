@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.API.Data;
 using PersonalFinance.API.Models;
+using PersonalFinance.API.Models.DTOs;
 
 namespace PersonalFinance.API.Controllers
 {
@@ -17,17 +18,26 @@ namespace PersonalFinance.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
+        public async Task<ActionResult<IEnumerable<CategoryResponseDto>>> GetCategories()
         {
             var userId = GetUserId();
-            return await _context.Categories
+            var categories = await _context.Categories
                 .Where(c => c.UserId == userId)
                 .OrderBy(c => c.Name)
                 .ToListAsync();
+
+            return categories.Select(c => new CategoryResponseDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                IsIncome = c.IsIncome,
+                Description = c.Description,
+                UserId = c.UserId
+            }).ToList();
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Category>> GetCategory(int id)
+        public async Task<ActionResult<CategoryResponseDto>> GetCategory(int id)
         {
             var userId = GetUserId();
             var category = await _context.Categories
@@ -36,26 +46,47 @@ namespace PersonalFinance.API.Controllers
             if (category == null)
                 return NotFound();
 
-            return category;
+            return new CategoryResponseDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                IsIncome = category.IsIncome,
+                Description = category.Description,
+                UserId = category.UserId
+            };
         }
 
         [HttpPost]
-        public async Task<ActionResult<Category>> PostCategory(Category category)
+        public async Task<ActionResult<CategoryResponseDto>> PostCategory([FromBody] CategoryDto categoryDto)
         {
             var userId = GetUserId();
-            category.UserId = userId;
+
+            var category = new Category
+            {
+                Name = categoryDto.Name,
+                IsIncome = categoryDto.IsIncome,
+                Description = categoryDto.Description,
+                UserId = userId
+            };
+
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetCategory", new { id = category.Id }, category);
+            var response = new CategoryResponseDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                IsIncome = category.IsIncome,
+                Description = category.Description,
+                UserId = category.UserId
+            };
+
+            return CreatedAtAction("GetCategory", new { id = category.Id }, response);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCategory(int id, Category category)
+        public async Task<IActionResult> PutCategory(int id, [FromBody] CategoryDto categoryDto)
         {
-            if (id != category.Id)
-                return BadRequest();
-
             var userId = GetUserId();
             var existingCategory = await _context.Categories
                 .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
@@ -63,9 +94,9 @@ namespace PersonalFinance.API.Controllers
             if (existingCategory == null)
                 return NotFound();
 
-            existingCategory.Name = category.Name;
-            existingCategory.Description = category.Description;
-            existingCategory.IsIncome = category.IsIncome;
+            existingCategory.Name = categoryDto.Name;
+            existingCategory.Description = categoryDto.Description;
+            existingCategory.IsIncome = categoryDto.IsIncome;
 
             try
             {
