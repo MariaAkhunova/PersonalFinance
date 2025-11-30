@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PersonalFinance.API/PersonalFinance.API.csproj" />
+  <Project Path="PersonalFinance.Web/PersonalFinance.Web.csproj" />
+</Solution>
