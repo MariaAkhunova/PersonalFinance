@@ -1,7 +1,8 @@
-﻿using System.Net.Http.Json;
+﻿using Blazored.LocalStorage;
 using PersonalFinance.Web.Models;
-using Blazored.LocalStorage;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace PersonalFinance.Web.Services
 {
@@ -9,93 +10,125 @@ namespace PersonalFinance.Web.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILocalStorageService _localStorage;
-        private const string TokenKey = "authToken";
-        private const string UserKey = "currentUser";
+        private readonly CustomAuthStateProvider _authStateProvider;
 
-        public AuthService(HttpClient httpClient, ILocalStorageService localStorage)
+        public AuthService(
+            HttpClient httpClient,
+            ILocalStorageService localStorage,
+            CustomAuthStateProvider authStateProvider)
         {
             _httpClient = httpClient;
             _localStorage = localStorage;
+            _authStateProvider = authStateProvider;
         }
 
-        public async Task<bool> RegisterAsync(RegisterModel model)
+        // Регистрация
+        public async Task<(bool Success, string Message)> RegisterAsync(RegisterModel model)
         {
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("api/auth/register", model);
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                    if (result != null && !string.IsNullOrEmpty(result.Token))
+                    var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+                    if (result.TryGetProperty("token", out var tokenElement) &&
+                        result.TryGetProperty("user", out var userElement))
                     {
-                        await SaveAuthData(result.Token, result.User);
-                        return true;
+                        var token = tokenElement.GetString();
+                        var user = JsonSerializer.Deserialize<User>(userElement.GetRawText());
+
+                        if (!string.IsNullOrEmpty(token) && user != null)
+                        {
+                            await _authStateProvider.NotifyUserAuthentication(token, user);
+                            return (true, "Регистрация успешна!");
+                        }
                     }
                 }
-                return false;
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    return (false, $"Ошибка: {response.StatusCode} - {error}");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                return (false, $"Ошибка: {ex.Message}");
             }
+
+            return (false, "Неизвестная ошибка");
         }
 
-        public async Task<bool> LoginAsync(LoginModel model)
+        // Вход
+        public async Task<(bool Success, string Message)> LoginAsync(LoginModel model)
         {
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("api/auth/login", model);
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                    if (result != null && !string.IsNullOrEmpty(result.Token))
+                    var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+                    if (result.TryGetProperty("token", out var tokenElement) &&
+                        result.TryGetProperty("user", out var userElement))
                     {
-                        await SaveAuthData(result.Token, result.User);
-                        return true;
+                        var token = tokenElement.GetString();
+                        var user = JsonSerializer.Deserialize<User>(userElement.GetRawText());
+
+                        if (!string.IsNullOrEmpty(token) && user != null)
+                        {
+                            await _authStateProvider.NotifyUserAuthentication(token, user);
+                            return (true, "Вход успешен!");
+                        }
                     }
                 }
-                return false;
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    return (false, $"Неверный email или пароль");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                return (false, $"Ошибка: {ex.Message}");
             }
+
+            return (false, "Неверный email или пароль");
         }
 
+        // Выход
         public async Task LogoutAsync()
         {
-            try
-            {
-                await _localStorage.RemoveItemAsync(TokenKey);
-                await _localStorage.RemoveItemAsync(UserKey);
-                _httpClient.DefaultRequestHeaders.Authorization = null;
-            }
-            catch { }
+            await _authStateProvider.NotifyUserLogout();
         }
 
-        public async Task<bool> IsAuthenticatedAsync()
-        {
-            var token = await GetTokenAsync();
-            return !string.IsNullOrEmpty(token);
-        }
-
-        public async Task<string?> GetTokenAsync()
-        {
-            try
-            {
-                return await _localStorage.GetItemAsync<string>(TokenKey);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
+        // Получение текущего пользователя
         public async Task<User?> GetCurrentUserAsync()
         {
             try
             {
-                return await _localStorage.GetItemAsync<User>(UserKey);
+                var userJson = await _localStorage.GetItemAsync<string>("currentUser");
+                if (!string.IsNullOrEmpty(userJson))
+                {
+                    return JsonSerializer.Deserialize<User>(userJson);
+                }
+            }
+            catch
+            {
+                // Игнорируем ошибки
+            }
+
+            return null;
+        }
+
+        // Получение токена
+        public async Task<string?> GetTokenAsync()
+        {
+            try
+            {
+                return await _localStorage.GetItemAsync<string>("authToken");
             }
             catch
             {
@@ -103,6 +136,7 @@ namespace PersonalFinance.Web.Services
             }
         }
 
+        // Инициализация заголовка авторизации
         public async Task InitializeAuthHeader()
         {
             var token = await GetTokenAsync();
@@ -112,24 +146,5 @@ namespace PersonalFinance.Web.Services
                     new AuthenticationHeaderValue("Bearer", token);
             }
         }
-
-        private async Task SaveAuthData(string token, User user)
-        {
-            try
-            {
-                await _localStorage.SetItemAsync(TokenKey, token);
-                await _localStorage.SetItemAsync(UserKey, user);
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", token);
-            }
-            catch { }
-        }
-    }
-
-    public class AuthResponse
-    {
-        public string Token { get; set; } = string.Empty;
-        public User User { get; set; } = null!;
-        public string Message { get; set; } = string.Empty;
     }
 }

@@ -1,24 +1,34 @@
 ﻿@page "/login"
 @layout MainLayout
 @using System.ComponentModel.DataAnnotations
+@using PersonalFinance.Web.Models 
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
 
 <div class="form-container">
     <div class="form-card">
         <h1 class="form-title">Вход в систему</h1>
         <p class="form-subtitle">Войдите в свой аккаунт</p>
 
-        <EditForm Model="@LoginModel" OnValidSubmit="@HandleLogin">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                @errorMessage
+            </div>
+        }
+
+        <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
             <DataAnnotationsValidator />
 
             <div class="form-group">
                 <label class="form-label">Email</label>
                 <div class="input-with-icon">
                     <span class="input-icon">📧</span>
-                    <InputText @bind-Value="LoginModel.Email"
+                    <InputText @bind-Value="loginModel.Email"
                                class="form-input"
                                placeholder="example@email.com" />
                 </div>
-                <ValidationMessage For="@(() => LoginModel.Email)" class="validation-message" />
+                <ValidationMessage For="@(() => loginModel.Email)" class="validation-message" />
             </div>
 
             <div class="form-group">
@@ -26,27 +36,24 @@
                 <div class="input-with-icon">
                     <span class="input-icon">🔒</span>
                     <InputText type="password"
-                               @bind-Value="LoginModel.Password"
+                               @bind-Value="loginModel.Password"
                                class="form-input"
                                placeholder="Введите пароль" />
                 </div>
-                <ValidationMessage For="@(() => LoginModel.Password)" class="validation-message" />
+                <ValidationMessage For="@(() => loginModel.Password)" class="validation-message" />
             </div>
 
-            <div class="text-center mb-4">
-                <a href="/forgot-password" class="form-link" style="font-size: 14px;">
-                    Забыли пароль?
-                </a>
-            </div>
-
-            <button type="submit" class="form-button">
-                Войти
+            <button type="submit" class="form-button" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span>Вход...</span>
+                }
+                else
+                {
+                    <span>Войти</span>
+                }
             </button>
         </EditForm>
-
-        <div class="divider">
-            <span>или</span>
-        </div>
 
         <div class="form-footer">
             Нет аккаунта?
@@ -56,26 +63,45 @@
 </div>
 
 @code {
-    private LoginInputModel LoginModel { get; set; } = new();
+    private LoginModel loginModel = new();
+    private string? errorMessage;
+    private bool isLoading = false;
 
-    private void HandleLogin()
+    private async Task HandleLogin()
     {
-        // Здесь будет ваша логика входа
-        Console.WriteLine($"Вход: {LoginModel.Email}");
+        errorMessage = null;
+        isLoading = true;
 
-        // Пример: переход на главную после успешного входа
-        NavigationManager.NavigateTo("/");
+        try
+        {
+            Console.WriteLine($"Попытка входа: {loginModel.Email}");
+
+            var result = await AuthService.LoginAsync(loginModel);
+
+            if (result.Success)
+            {
+                Console.WriteLine("✅ Успешный вход! Перенаправляем на дашборд...");
+                NavigationManager.NavigateTo("/transactions", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Неверный email или пароль";
+                Console.WriteLine($"❌ Ошибка входа: {errorMessage}");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Ошибка соединения: {ex.Message}";
+            Console.WriteLine($"❌ HTTP ошибка: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Произошла ошибка: {ex.Message}";
+            Console.WriteLine($"❌ Исключение: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
-
-    public class LoginInputModel
-    {
-        [Required(ErrorMessage = "Обязательное поле")]
-        [EmailAddress(ErrorMessage = "Введите корректный email")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Обязательное поле")]
-        public string Password { get; set; } = "";
     }
-
-    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
-}

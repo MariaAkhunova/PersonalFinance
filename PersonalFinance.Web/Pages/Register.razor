@@ -1,35 +1,63 @@
 ﻿@page "/register"
 @layout MainLayout
 @using System.ComponentModel.DataAnnotations
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@using PersonalFinance.Web.Models
 
 <div class="form-container">
     <div class="form-card">
         <h1 class="form-title">Регистрация</h1>
         <p class="form-subtitle">Создайте аккаунт для управления финансами</p>
 
-        <EditForm Model="@RegisterModel" OnValidSubmit="@HandleRegister">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                @successMessage
+            </div>
+        }
+
+        <EditForm Model="@registerModel" OnValidSubmit="@HandleRegister">
             <DataAnnotationsValidator />
 
             <div class="form-group">
-                <label class="form-label">Имя пользователя</label>
+                <label class="form-label">Имя</label>
                 <div class="input-with-icon">
                     <span class="input-icon">👤</span>
-                    <InputText @bind-Value="RegisterModel.Username"
-                               class="@GetInputClass("Username")"
-                               placeholder="Введите имя пользователя" />
+                    <InputText @bind-Value="registerModel.FirstName"
+                               class="form-input"
+                               placeholder="Введите имя" />
                 </div>
-                <ValidationMessage For="@(() => RegisterModel.Username)" class="validation-message" />
+                <ValidationMessage For="@(() => registerModel.FirstName)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Фамилия</label>
+                <div class="input-with-icon">
+                    <span class="input-icon">👤</span>
+                    <InputText @bind-Value="registerModel.LastName"
+                               class="form-input"
+                               placeholder="Введите фамилию" />
+                </div>
+                <ValidationMessage For="@(() => registerModel.LastName)" class="validation-message" />
             </div>
 
             <div class="form-group">
                 <label class="form-label">Email</label>
                 <div class="input-with-icon">
                     <span class="input-icon">📧</span>
-                    <InputText @bind-Value="RegisterModel.Email"
-                               class="@GetInputClass("Email")"
+                    <InputText @bind-Value="registerModel.Email"
+                               class="form-input"
                                placeholder="example@email.com" />
                 </div>
-                <ValidationMessage For="@(() => RegisterModel.Email)" class="validation-message" />
+                <ValidationMessage For="@(() => registerModel.Email)" class="validation-message" />
             </div>
 
             <div class="form-group">
@@ -37,27 +65,22 @@
                 <div class="input-with-icon">
                     <span class="input-icon">🔒</span>
                     <InputText type="password"
-                               @bind-Value="RegisterModel.Password"
-                               class="@GetInputClass("Password")"
+                               @bind-Value="registerModel.Password"
+                               class="form-input"
                                placeholder="Минимум 6 символов" />
                 </div>
-                <ValidationMessage For="@(() => RegisterModel.Password)" class="validation-message" />
+                <ValidationMessage For="@(() => registerModel.Password)" class="validation-message" />
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Подтвердите пароль</label>
-                <div class="input-with-icon">
-                    <span class="input-icon">🔒</span>
-                    <InputText type="password"
-                               @bind-Value="RegisterModel.ConfirmPassword"
-                               class="@GetInputClass("ConfirmPassword")"
-                               placeholder="Повторите пароль" />
-                </div>
-                <ValidationMessage For="@(() => RegisterModel.ConfirmPassword)" class="validation-message" />
-            </div>
-
-            <button type="submit" class="form-button">
-                Зарегистрироваться
+            <button type="submit" class="form-button" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span>Регистрация...</span>
+                }
+                else
+                {
+                    <span>Зарегистрироваться</span>
+                }
             </button>
         </EditForm>
 
@@ -69,49 +92,45 @@
 </div>
 
 @code {
-    private RegisterInputModel RegisterModel { get; set; } = new();
-    private List<string> ValidationErrors { get; set; } = new();
+  private RegisterModel registerModel = new();
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isLoading = false;
 
-    private void HandleRegister()
+    private async Task HandleRegister()
     {
-        ValidationErrors.Clear();
+        errorMessage = null;
+        successMessage = null;
+        isLoading = true;
 
-        // Здесь будет ваша логика регистрации
-        Console.WriteLine($"Регистрация: {RegisterModel.Username}, {RegisterModel.Email}");
+        try
+        {
+            Console.WriteLine($"Попытка регистрации: {registerModel.Email}");
 
-        // Пример: переход на главную после успешной регистрации
-        NavigationManager.NavigateTo("/");
+            var result = await AuthService.RegisterAsync(registerModel);
+
+            if (result.Success)
+            {
+                successMessage = result.Message ?? "✅ Регистрация успешна!";
+                Console.WriteLine("✅ Успешная регистрация!");
+
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Ошибка регистрации";
+                Console.WriteLine($"❌ Ошибка регистрации: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Произошла ошибка: {ex.Message}";
+            Console.WriteLine($"❌ Исключение: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
-
-    private string GetInputClass(string fieldName)
-    {
-        return IsInvalid(fieldName) ? "form-input invalid" : "form-input";
-    }
-
-    private bool IsInvalid(string fieldName)
-    {
-        return ValidationErrors.Contains(fieldName);
-    }
-
-    public class RegisterInputModel
-    {
-        [Required(ErrorMessage = "Обязательное поле")]
-        [MinLength(3, ErrorMessage = "Минимум 3 символа")]
-        [MaxLength(20, ErrorMessage = "Максимум 20 символов")]
-        public string Username { get; set; } = "";
-
-        [Required(ErrorMessage = "Обязательное поле")]
-        [EmailAddress(ErrorMessage = "Введите корректный email")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Обязательное поле")]
-        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
-        public string Password { get; set; } = "";
-
-        [Required(ErrorMessage = "Обязательное поле")]
-        [Compare(nameof(Password), ErrorMessage = "Пароли не совпадают")]
-        public string ConfirmPassword { get; set; } = "";
-    }
-
-    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
 }
