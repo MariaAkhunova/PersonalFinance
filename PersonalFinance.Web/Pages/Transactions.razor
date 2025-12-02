@@ -1,229 +1,219 @@
 ﻿@page "/transactions"
 @attribute [Authorize]
 @layout MainLayout
-@using PersonalFinance.Web.Models
-@using PersonalFinance.Web.Services
+@inject AuthService AuthService
 @inject TransactionService TransactionService
 @inject CategoryService CategoryService
 @inject NavigationManager NavigationManager
-@inject IJSRuntime jsRuntime
+@inject IJSRuntime JSRuntime
 
-<div class="page-container">
+<div class="transactions-page">
     <div class="page-header">
-        <h1>Мои транзакции</h1>
-        <button @onclick="ShowAddModal" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Добавить
-        </button>
-    </div>
-
-    <!-- Фильтры -->
-    <div class="filters">
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label">Месяц</label>
-                    <select @bind="selectedMonth" @bind:after="LoadTransactions" class="form-select">
-                    @foreach (var month in months)
-                    {
-                        <option value="@month.Value">@month.Text</option>
-                    }
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Категория</label>
-                <select @bind="selectedCategoryId" @bind:after="LoadTransactions" class="form-select">
-                    <option value="">Все категории</option>
-                    @foreach (var category in categories)
-                    {
-                        <option value="@category.Id">@category.Name</option>
-                    }
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Тип</label>
-                <select @bind="selectedType" @bind:after="LoadTransactions" class="form-select">
-                    <option value="">Все</option>
-                    <option value="income">Доходы</option>
-                    <option value="expense">Расходы</option>
-                </select>
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button @onclick="ExportToCsv" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-download"></i> Экспорт
-                </button>
-            </div>
+        <h1>💰 Мои транзакции</h1>
+        <div class="header-actions">
+            <button @onclick="ShowAddModal" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Новая транзакция
+            </button>
         </div>
     </div>
 
     <!-- Статистика -->
-    <div class="stats mt-4">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="stat-card income">
-                    <div class="stat-title">Доходы</div>
-                    <div class="stat-value">@totalIncome.ToString("C")</div>
-                </div>
+    <div class="stats-cards">
+        <div class="stat-card total-income">
+            <div class="stat-icon">
+                <i class="fas fa-arrow-up"></i>
             </div>
-            <div class="col-md-4">
-                <div class="stat-card expense">
-                    <div class="stat-title">Расходы</div>
-                    <div class="stat-value">@totalExpense.ToString("C")</div>
-                </div>
+            <div class="stat-content">
+                <div class="stat-value">@totalIncome.ToString("C")</div>
+                <div class="stat-label">Общий доход</div>
             </div>
-            <div class="col-md-4">
-                <div class="stat-card balance">
-                    <div class="stat-title">Баланс</div>
-                    <div class="stat-value">@((totalIncome - totalExpense).ToString("C"))</div>
-                </div>
+        </div>
+
+        <div class="stat-card total-expense">
+            <div class="stat-icon">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">@totalExpense.ToString("C")</div>
+                <div class="stat-label">Общие расходы</div>
+            </div>
+        </div>
+
+        <div class="stat-card balance">
+            <div class="stat-icon">
+                <i class="fas fa-balance-scale"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">@balance.ToString("C")</div>
+                <div class="stat-label">Баланс</div>
             </div>
         </div>
     </div>
 
     <!-- Таблица транзакций -->
-    <div class="table-responsive mt-4">
-        <table class="table table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Дата</th>
-                    <th>Категория</th>
-                    <th>Описание</th>
-                    <th class="text-end">Сумма</th>
-                    <th class="text-center">Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (isLoading)
-                {
-                    <tr>
-                        <td colspan="5" class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Загрузка...</span>
-                            </div>
-                        </td>
-                    </tr>
-                }
-                else if (!transactions.Any())
-                {
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            Нет транзакций для отображения
-                        </td>
-                    </tr>
-                }
-                else
-                {
-                    @foreach (var transaction in transactions)
-                    {
-                        <tr>
-                            <td>@transaction.Date.ToString("dd.MM.yyyy")</td>
-                            <td>
-                                <span class="badge @(transaction.Category?.IsIncome == true ? "bg-success" : "bg-danger")">
-                                    @transaction.Category?.Name
-                                </span>
-                            </td>
-                            <td>
-                                @if (string.IsNullOrEmpty(transaction.Description))
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                                else
-                                {
-                                    @transaction.Description
-                                }
-                            </td>
-                            <td class="text-end @(transaction.Category?.IsIncome == true ? "text-success" : "text-danger")">
-                                @if (transaction.Category?.IsIncome == true)
-                                {
-                                    <i class="fas fa-arrow-up me-1"></i>
-                                }
-                                else
-                                {
-                                    <i class="fas fa-arrow-down me-1"></i>
-                                }
-                                @transaction.Amount.ToString("C")
-                            </td>
-                            <td class="text-center">
-                                <button @onclick="() => EditTransaction(transaction)" 
-                                        class="btn btn-sm btn-outline-primary me-1">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button @onclick="() => DeleteTransaction(transaction)" 
-                                        class="btn btn-sm btn-outline-danger">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                }
-            </tbody>
-        </table>
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 История транзакций</h5>
+            <div class="btn-group">
+                <button class="btn btn-sm @(filter == "all" ? "btn-primary" : "btn-outline-primary")"
+                        @onclick='() => SetFilter("all")'>
+                    Все
+                </button>
+                <button class="btn btn-sm @(filter == "income" ? "btn-success" : "btn-outline-success")"
+                        @onclick='() => SetFilter("income")'>
+                    Доходы
+                </button>
+                <button class="btn btn-sm @(filter == "expense" ? "btn-danger" : "btn-outline-danger")"
+                        @onclick='() => SetFilter("expense")'>
+                    Расходы
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body">
+            @if (transactions.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <h4>Транзакций пока нет</h4>
+                    <p class="text-muted">Добавьте свою первую транзакцию!</p>
+                    <button @onclick="ShowAddModal" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить транзакцию
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Категория</th>
+                                <th>Описание</th>
+                                <th class="text-end">Сумма</th>
+                                <th class="text-center">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var transaction in filteredTransactions)
+                            {
+                                <tr>
+                                    <td>@transaction.Date.ToString("dd.MM.yyyy")</td>
+                                    <td>
+                                        <span class="badge @(transaction.Category?.IsIncome == true ? "bg-success" : "bg-danger")">
+                                            @transaction.Category?.Name
+                                        </span>
+                                    </td>
+                                    <td>@(transaction.Description ?? "-")</td>
+                                    <td class="text-end @(transaction.Category?.IsIncome == true ? "text-success" : "text-danger")">
+                                        @if (transaction.Category?.IsIncome == true)
+                                        {
+                                            <i class="fas fa-arrow-up me-1"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-arrow-down me-1"></i>
+                                        }
+                                        @transaction.Amount.ToString("C")
+                                    </td>
+                                    <td class="text-center">
+                                        <button @onclick='() => EditTransaction(transaction)'
+                                                class="btn btn-sm btn-outline-primary me-1">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button @onclick='() => DeleteTransaction(transaction)'
+                                                class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </div>
 </div>
 
-<!-- Модальное окно добавления/редактирования -->
+<!-- Модальное окно добавления/редактирования транзакции -->
 @if (showModal)
 {
     <div class="modal-backdrop show"></div>
-    <div class="modal show d-block" tabindex="-1">
+    <div class="modal show d-block">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        @(currentTransaction?.Id > 0 ? "Редактирование" : "Новая транзакция")
+                        @(editingTransaction == null ? "Новая транзакция" : "Редактирование")
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body">
-                    <EditForm Model="@transactionModel" OnValidSubmit="@SaveTransaction">
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label">Тип</label>
+                            <div class="btn-group w-100">
+                                <button type="button"
+                                        class="btn @(isIncome ? "btn-success" : "btn-outline-success") w-50"
+                                        @onclick='() => { isIncome = true; transaction.CategoryId = 0; }'>
+                                    <i class="fas fa-arrow-up me-1"></i> Доход
+                                </button>
+                                <button type="button"
+                                        class="btn @(!isIncome ? "btn-danger" : "btn-outline-danger") w-50"
+                                        @onclick='() => { isIncome = false; transaction.CategoryId = 0; }'>
+                                    <i class="fas fa-arrow-down me-1"></i> Расход
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">Категория *</label>
-                            <select @bind="transactionModel.CategoryId" class="form-select" required>
+                            <select @bind="transaction.CategoryId" class="form-select" required>
                                 <option value="">Выберите категорию</option>
-                                @foreach (var category in categories)
+                                @foreach (var category in categories.Where(c => c.IsIncome == isIncome))
                                 {
-                                    <option value="@category.Id">
-                                        @category.Name (@(category.IsIncome ? "Доход" : "Расход"))
-                                    </option>
+                                    <option value="@category.Id">@category.Name</option>
                                 }
                             </select>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Сумма *</label>
-                            <input type="number" step="0.01" 
-                                   @bind="transactionModel.Amount"
-                                   class="form-control" 
+                            <input type="number" step="0.01"
+                                   @bind="transaction.Amount"
+                                   class="form-control"
                                    placeholder="0.00" />
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Дата</label>
-                            <input type="date"/>
-                            <input @bind="transactionModel.Date" />
-                                   class="form-control" 
-                                   value="@transactionModel.Date.ToString("yyyy-MM-dd")" />
+                            <input type="date"
+                                   @bind="transaction.Date"
+                                   class="form-control" />
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Описание</label>
-                            <textarea @bind="transactionModel.Description"
-                                     class="form-control"
-                                     rows="3"
-                                     placeholder="Описание..."></textarea>
+                            <textarea @bind="transaction.Description"
+                                      class="form-control"
+                                      rows="3"
+                                      placeholder="Описание транзакции..."></textarea>
                         </div>
-                        
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
-                                @if (isSaving)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-1"></span>
-                                }
-                                Сохранить
-                            </button>
-                        </div>
-                    </EditForm>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                        Отмена
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveTransaction" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Сохранить
+                    </button>
                 </div>
             </div>
         </div>
@@ -233,109 +223,43 @@
 @code {
     private List<Transaction> transactions = new();
     private List<Category> categories = new();
-    private Transaction? currentTransaction;
-    private TransactionCreateModel transactionModel = new();
-    
-    private int selectedMonth = DateTime.Now.Month;
-    private int? selectedCategoryId;
-    private string? selectedType;
-    
+    private List<Transaction> filteredTransactions = new();
+    private TransactionCreateModel transaction = new();
+    private Transaction? editingTransaction;
+
     private decimal totalIncome = 0;
     private decimal totalExpense = 0;
-    
-    private bool isLoading = false;
-    private bool isSaving = false;
-    private bool showModal = false;
-    
-    private List<SelectItem> months = new()
-    {
-        new SelectItem(1, "Январь"), new SelectItem(2, "Февраль"),
-        new SelectItem(3, "Март"), new SelectItem(4, "Апрель"),
-        new SelectItem(5, "Май"), new SelectItem(6, "Июнь"),
-        new SelectItem(7, "Июль"), new SelectItem(8, "Август"),
-        new SelectItem(9, "Сентябрь"), new SelectItem(10, "Октябрь"),
-        new SelectItem(11, "Ноябрь"), new SelectItem(12, "Декабрь")
-    };
+    private decimal balance = 0;
 
-    private class SelectItem
-    {
-        public int Value { get; set; }
-        public string Text { get; set; }
-        
-        public SelectItem(int value, string text)
-        {
-            Value = value;
-            Text = text;
-        }
-    }
+    private bool showModal = false;
+    private bool isSaving = false;
+    private bool isIncome = true;
+    private string filter = "all";
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadCategories();
-        await LoadTransactions();
+        await LoadData();
     }
 
-    private async Task LoadCategories()
+    private async Task LoadData()
     {
         try
         {
-            categories = await CategoryService.GetCategoriesAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка загрузки категорий: {ex.Message}");
-        }
-    }
-
-    private async Task LoadTransactions()
-    {
-        isLoading = true;
-        try
-        {
-            // Получаем все транзакции
+            // Загружаем транзакции
             transactions = await TransactionService.GetTransactionsAsync();
-            
-            // Фильтруем по месяцу
-            if (selectedMonth > 0)
-            {
-                transactions = transactions
-                    .Where(t => t.Date.Month == selectedMonth && t.Date.Year == DateTime.Now.Year)
-                    .ToList();
-            }
-            
-            // Фильтруем по категории
-            if (selectedCategoryId.HasValue)
-            {
-                transactions = transactions
-                    .Where(t => t.CategoryId == selectedCategoryId.Value)
-                    .ToList();
-            }
-            
-            // Фильтруем по типу
-            if (!string.IsNullOrEmpty(selectedType))
-            {
-                bool isIncome = selectedType == "income";
-                transactions = transactions
-                    .Where(t => t.Category?.IsIncome == isIncome)
-                    .ToList();
-            }
-            
-            // Сортируем по дате
-            transactions = transactions
-                .OrderByDescending(t => t.Date)
-                .ThenByDescending(t => t.Id)
-                .ToList();
-            
+
+            // Загружаем категории
+            categories = await CategoryService.GetCategoriesAsync();
+
             // Рассчитываем статистику
             CalculateStatistics();
+
+            // Применяем фильтр
+            ApplyFilter();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка загрузки транзакций: {ex.Message}");
-        }
-        finally
-        {
-            isLoading = false;
+            Console.WriteLine($"Ошибка загрузки данных: {ex.Message}");
         }
     }
 
@@ -344,64 +268,89 @@
         totalIncome = transactions
             .Where(t => t.Category?.IsIncome == true)
             .Sum(t => t.Amount);
-        
+
         totalExpense = transactions
             .Where(t => t.Category?.IsIncome == false)
             .Sum(t => t.Amount);
+
+        balance = totalIncome - totalExpense;
+    }
+
+    private void ApplyFilter()
+    {
+        filteredTransactions = filter switch
+        {
+            "income" => transactions.Where(t => t.Category?.IsIncome == true).ToList(),
+            "expense" => transactions.Where(t => t.Category?.IsIncome == false).ToList(),
+            _ => transactions
+        };
+    }
+
+    private void SetFilter(string newFilter)
+    {
+        filter = newFilter;
+        ApplyFilter();
     }
 
     private void ShowAddModal()
     {
-        currentTransaction = null;
-        transactionModel = new TransactionCreateModel
-        {
-            Date = DateTime.Now
-        };
+        transaction = new TransactionCreateModel { Date = DateTime.Now };
+        editingTransaction = null;
+        isIncome = true;
         showModal = true;
     }
 
-    private void EditTransaction(Transaction transaction)
+    private void EditTransaction(Transaction t)
     {
-        currentTransaction = transaction;
-        transactionModel = new TransactionCreateModel
+        editingTransaction = t;
+        transaction = new TransactionCreateModel
         {
-            Amount = transaction.Amount,
-            Description = transaction.Description,
-            Date = transaction.Date,
-            CategoryId = transaction.CategoryId
+            Amount = t.Amount,
+            Description = t.Description,
+            Date = t.Date,
+            CategoryId = t.CategoryId
         };
+        isIncome = t.Category?.IsIncome == true;
         showModal = true;
     }
 
     private async Task SaveTransaction()
     {
+        if (transaction.CategoryId == 0)
+        {
+            Console.WriteLine("Выберите категорию!");
+            return;
+        }
+
         isSaving = true;
+
         try
         {
             bool success;
-            
-            if (currentTransaction?.Id > 0)
+
+            if (editingTransaction != null)
             {
-                var transactionToUpdate = new Transaction
+                // Редактирование существующей транзакции
+                var t = new Transaction
                 {
-                    Id = currentTransaction.Id,
-                    Amount = transactionModel.Amount,
-                    Description = transactionModel.Description,
-                    Date = transactionModel.Date,
-                    CategoryId = transactionModel.CategoryId,
-                    UserId = currentTransaction.UserId
+                    Id = editingTransaction.Id,
+                    Amount = transaction.Amount,
+                    Description = transaction.Description,
+                    Date = transaction.Date,
+                    CategoryId = transaction.CategoryId
                 };
-                
-                success = await TransactionService.UpdateTransactionAsync(currentTransaction.Id, transactionToUpdate);
+
+                success = await TransactionService.UpdateTransactionAsync(editingTransaction.Id, t);
             }
             else
             {
-                success = await TransactionService.CreateTransactionAsync(transactionModel);
+                // Создание новой транзакции
+                success = await TransactionService.CreateTransactionAsync(transaction);
             }
 
             if (success)
             {
-                await LoadTransactions();
+                await LoadData();
                 CloseModal();
             }
         }
@@ -415,14 +364,24 @@
         }
     }
 
-    private async Task DeleteTransaction(Transaction transaction)
+    private async Task DeleteTransaction(Transaction t)
     {
-        if (await jsRuntime.InvokeAsync<bool>("confirm", $"Удалить транзакцию от {transaction.Date:dd.MM.yyyy} на сумму {transaction.Amount:C}?"))
+        // Используем IJSRuntime для вызова confirm
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Удалить эту транзакцию?");
+
+        if (confirmed)
         {
-            var success = await TransactionService.DeleteTransactionAsync(transaction.Id);
-            if (success)
+            try
             {
-                await LoadTransactions();
+                var success = await TransactionService.DeleteTransactionAsync(t.Id);
+                if (success)
+                {
+                    await LoadData();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка удаления: {ex.Message}");
             }
         }
     }
@@ -430,24 +389,6 @@
     private void CloseModal()
     {
         showModal = false;
-        currentTransaction = null;
-        transactionModel = new TransactionCreateModel();
-    }
-
-    private async Task ExportToCsv()
-    {
-        var csv = "Дата;Категория;Тип;Сумма;Описание\n";
-        
-        foreach (var transaction in transactions)
-        {
-            csv += $"{transaction.Date:dd.MM.yyyy};" +
-                   $"{transaction.Category?.Name};" +
-                   $"{(transaction.Category?.IsIncome == true ? "Доход" : "Расход")};" +
-                   $"{transaction.Amount};" +
-                   $"{transaction.Description ?? ""}\n";
-        }
-        
-        var fileName = $"transactions_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-        await jsRuntime.InvokeVoidAsync("downloadFile", fileName, "text/csv", csv);
+        transaction = new TransactionCreateModel();
     }
 }
