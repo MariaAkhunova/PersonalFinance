@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+п»їusing Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -15,7 +15,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// JWT Authentication - Упрощаем валидацию
+// JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = Encoding.UTF8.GetBytes(jwtSettings["Secret"]);
 
@@ -31,36 +31,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = jwtSettings["ValidIssuer"],
             ValidAudience = jwtSettings["ValidAudience"],
             IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-            ClockSkew = TimeSpan.Zero // Убираем задержку для тестирования
-        };
-
-        // Для отладки
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = context =>
-            {
-                Console.WriteLine("Token validated successfully");
-                return Task.CompletedTask;
-            }
+            ClockSkew = TimeSpan.Zero
         };
     });
 
 builder.Services.AddAuthorization();
 
-// CORS
+// вљ пёЏ CORS Р”Р›РЇ Р’РђРЁРРҐ РџРћР РўРћР’:
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
+    options.AddPolicy("AllowBlazorApp",
         policy =>
         {
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
+            // вљ пёЏ Р¤СЂРѕРЅС‚РµРЅРґ РЅР° РїРѕСЂС‚Сѓ 7001, Р±СЌРєРµРЅРґ РЅР° 7165
+            policy.WithOrigins(
+                    "https://localhost:7001",  // в†ђ Р¤СЂРѕРЅС‚РµРЅРґ HTTPS
+                    "http://localhost:5001",   // в†ђ Р¤СЂРѕРЅС‚РµРЅРґ HTTP (РІР°С€ РІС‚РѕСЂРѕР№ РїРѕСЂС‚)
+                    "https://localhost:7165",  // в†ђ Р‘СЌРєРµРЅРґ (РјРѕР¶РµС‚ РїРѕРЅР°РґРѕР±РёС‚СЊСЃСЏ)
+                    "http://localhost:5176"    // в†ђ Р‘СЌРєРµРЅРґ HTTP
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials(); // Р’Р°Р¶РЅРѕ РґР»СЏ JWT
         });
 });
 
@@ -76,7 +68,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API for personal finance management"
     });
 
-    // Add JWT Authentication to Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -112,13 +103,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Personal Finance API v1");
-        c.ConfigObject.AdditionalItems["persistAuthorization"] = true; // Сохранять авторизацию
+        c.ConfigObject.AdditionalItems["persistAuthorization"] = true;
     });
 }
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
+// вљ пёЏ РџР РРњР•РќРРўР• CORS Р”Рћ РђРЈРўР•РќРўРР¤РРљРђР¦РР!
+app.UseCors("AllowBlazorApp");
 
 app.UseAuthentication();
 app.UseAuthorization();

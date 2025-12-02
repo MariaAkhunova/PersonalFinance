@@ -1,0 +1,81 @@
+﻿@page "/login"
+@layout MainLayout
+@using System.ComponentModel.DataAnnotations
+
+<div class="form-container">
+    <div class="form-card">
+        <h1 class="form-title">Вход в систему</h1>
+        <p class="form-subtitle">Войдите в свой аккаунт</p>
+
+        <EditForm Model="@LoginModel" OnValidSubmit="@HandleLogin">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <div class="input-with-icon">
+                    <span class="input-icon">📧</span>
+                    <InputText @bind-Value="LoginModel.Email"
+                               class="form-input"
+                               placeholder="example@email.com" />
+                </div>
+                <ValidationMessage For="@(() => LoginModel.Email)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Пароль</label>
+                <div class="input-with-icon">
+                    <span class="input-icon">🔒</span>
+                    <InputText type="password"
+                               @bind-Value="LoginModel.Password"
+                               class="form-input"
+                               placeholder="Введите пароль" />
+                </div>
+                <ValidationMessage For="@(() => LoginModel.Password)" class="validation-message" />
+            </div>
+
+            <div class="text-center mb-4">
+                <a href="/forgot-password" class="form-link" style="font-size: 14px;">
+                    Забыли пароль?
+                </a>
+            </div>
+
+            <button type="submit" class="form-button">
+                Войти
+            </button>
+        </EditForm>
+
+        <div class="divider">
+            <span>или</span>
+        </div>
+
+        <div class="form-footer">
+            Нет аккаунта?
+            <a href="/register" class="form-link">Зарегистрироваться</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginInputModel LoginModel { get; set; } = new();
+
+    private void HandleLogin()
+    {
+        // Здесь будет ваша логика входа
+        Console.WriteLine($"Вход: {LoginModel.Email}");
+
+        // Пример: переход на главную после успешного входа
+        NavigationManager.NavigateTo("/");
+    }
+
+    public class LoginInputModel
+    {
+        [Required(ErrorMessage = "Обязательное поле")]
+        [EmailAddress(ErrorMessage = "Введите корректный email")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Обязательное поле")]
+        public string Password { get; set; } = "";
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+}

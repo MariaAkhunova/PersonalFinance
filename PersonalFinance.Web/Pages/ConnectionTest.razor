@@ -1,0 +1,101 @@
+﻿@page "/connection-test"
+@inject HttpClient Http
+
+<div style="max-width: 600px; margin: 50px auto; padding: 30px; background: #f8f9fa; border-radius: 10px;">
+    <h2>🔗 Тест подключения к API</h2>
+
+    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h4>Текущие настройки:</h4>
+        <p><strong>Фронтенд:</strong> @frontendUrl</p>
+        <p><strong>API (HttpClient):</strong> @apiBaseUrl</p>
+    </div>
+
+    <button @onclick="TestConnection" class="btn btn-primary" style="padding: 10px 20px;">
+        Проверить подключение
+    </button>
+
+    @if (isTesting)
+    {
+        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+            🔄 Тестируем подключение...
+        </div>
+    }
+
+    @if (apiResponse != null)
+    {
+        <div style="margin-top: 20px; padding: 20px; background: #d4edda; border-radius: 8px;">
+            <h4 style="color: #155724;">✅ Успешное подключение!</h4>
+            <pre style="background: white; padding: 10px; border-radius: 5px; overflow-x: auto;">
+    @apiResponse
+                </pre>
+        </div>
+    }
+
+    @if (errorMessage != null)
+    {
+        <div style="margin-top: 20px; padding: 20px; background: #f8d7da; border-radius: 8px;">
+            <h4 style="color: #721c24;">❌ Ошибка подключения</h4>
+            <p>@errorMessage</p>
+            <hr>
+            <h5>Что проверить:</h5>
+            <ol>
+                <li>Запущен ли API на порту 7165</li>
+                <li>Открывается ли <a href="https://localhost:7165/swagger" target="_blank">Swagger</a></li>
+                <li>Правильно ли настроен CORS в API</li>
+                <li>В <code>Program.cs</code> фронтенда: <code>BaseAddress = "https://localhost:7165"</code></li>
+            </ol>
+        </div>
+    }
+</div>
+
+@code {
+    private string? apiResponse;
+    private string? errorMessage;
+    private bool isTesting = false;
+    private string frontendUrl = "";
+    private string apiBaseUrl = "";
+
+    protected override void OnInitialized()
+    {
+        frontendUrl = NavigationManager.BaseUri;
+        apiBaseUrl = "https://localhost:7165";
+    }
+
+    private async Task TestConnection()
+    {
+        isTesting = true;
+        apiResponse = null;
+        errorMessage = null;
+
+        try
+        {
+            // Пробуем получить данные из API
+            var response = await Http.GetAsync("api/test/status");
+
+            if (response.IsSuccessStatusCode)
+            {
+                apiResponse = await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                errorMessage = $"API вернул ошибку: {(int)response.StatusCode} {response.StatusCode}";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Ошибка HTTP: {ex.Message}";
+            Console.WriteLine($"HTTP ошибка: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Общая ошибка: {ex.Message}";
+            Console.WriteLine($"Ошибка: {ex.Message}");
+        }
+        finally
+        {
+            isTesting = false;
+        }
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+}

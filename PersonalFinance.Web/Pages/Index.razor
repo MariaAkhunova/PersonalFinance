@@ -1,0 +1,52 @@
+﻿@page "/"
+@using PersonalFinance.Web.Models
+@using PersonalFinance.Web.Services
+@inject NavigationManager Navigation
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Личные финансы</title>
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .btn {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Личные финансы</h1>
+        <p>Система учета личных финансов</p>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Вход в систему</h5>
+                        <p class="card-text">Уже есть аккаунт? Войдите в систему.</p>
+                        <a href="/login" class="btn btn-primary">Войти</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Регистрация</h5>
+                        <p class="card-text">Новый пользователь? Создайте аккаунт.</p>
+                        <a href="/register" class="btn btn-success">Зарегистрироваться</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
