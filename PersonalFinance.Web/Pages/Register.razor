@@ -115,7 +115,7 @@
                 Console.WriteLine("✅ Успешная регистрация!");
 
                 await Task.Delay(2000);
-                NavigationManager.NavigateTo("/login");
+                NavigationManager.NavigateTo("/transactions", forceLoad: true); ;
             }
             else
             {
