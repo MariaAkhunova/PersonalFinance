@@ -751,3 +751,133 @@ body {
         font-size: 0.9rem;
     }
 }
+/* Стили для кнопок транзакций */
+.transaction-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none !important;
+}
+
+/* Кнопка "Новая транзакция" - ОДНОТОННАЯ с отступом */
+.btn-new-transaction {
+    background: #4361ee; /* Однотонный синий */
+    color: white;
+    margin-left: 20px; /* Отступ от заголовка */
+    box-shadow: 0 3px 10px rgba(67, 97, 238, 0.2);
+    min-height: 40px;
+}
+
+    .btn-new-transaction:hover {
+        background: #3a56d4;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+    }
+
+    .btn-new-transaction:active {
+        transform: translateY(0);
+        background: #304fd1;
+    }
+
+    .btn-new-transaction:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+/* Кнопка "Сохранить" */
+.btn-save {
+    background: #4CAF50;
+    color: white;
+    min-width: 100px;
+    box-shadow: 0 3px 10px rgba(76, 175, 80, 0.2);
+}
+
+    .btn-save:hover {
+        background: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-save:active {
+        transform: translateY(0);
+        background: #3d8b40;
+    }
+
+    .btn-save:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+/* Кнопка "Отмена" */
+.btn-cancel {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    min-width: 100px;
+}
+
+    .btn-cancel:hover {
+        background: #e9ecef;
+        color: #212529;
+        transform: translateY(-2px);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-cancel:active {
+        transform: translateY(0);
+        background: #dee2e6;
+    }
+
+    .btn-cancel:disabled {
+        background: #f8f9fa;
+        color: #adb5bd;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+/* Иконки в кнопках */
+.transaction-btn i {
+    font-size: 16px;
+}
+
+/* Группа кнопок в модальном окне */
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Фикс для заголовка и кнопки, чтобы не наезжали */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 0 10px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 600;
+        color: #2c3e50;
+        flex-grow: 1;
+    }
